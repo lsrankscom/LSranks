@@ -1,30 +1,29 @@
-import Navbar from "../components/Navbar";
-
 export default function Home() {
   return (
-    <>
-      <Navbar />
-      <main className="container py-10">
-        <section className="card p-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
-            LSRanks – Lifesaving Results & Rankings
-          </h1>
-          <p className="text-gray-600">
-            Global database for Pool & Ocean Lifesaving results, records, and rankings.
-          </p>
-        </section>
+    <div className="text-center space-y-10">
+      <h1 className="text-4xl font-bold mt-10 text-brand-700 dark:text-brand-400">
+        Willkommen bei LSranks
+      </h1>
+      <p className="text-gray-600 dark:text-gray-300">
+        Deine globale Plattform für Lifesaving Ergebnisse, Ranglisten und Rekorde.
+      </p>
 
-        <section className="grid sm:grid-cols-2 gap-6 mt-8">
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold mb-2">Pool</h2>
-            <p className="text-gray-600">25/50 m, ET/HT, full discipline set.</p>
-          </div>
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold mb-2">Ocean</h2>
-            <p className="text-gray-600">Beach sprint, flags, board, ski…</p>
-          </div>
-        </section>
-      </main>
-    </>
+      <div className="grid md:grid-cols-3 gap-6 mt-10">
+        <a href="/records" className="card p-8 hover:shadow-lg transition rounded-lg">
+          <h2 className="text-xl font-semibold mb-2">🌍 Weltrekorde</h2>
+          <p>Alle offiziellen Lifesaving-Rekorde weltweit, sortiert nach Disziplin und Nation.</p>
+        </a>
+
+        <a href="/results" className="card p-8 hover:shadow-lg transition rounded-lg">
+          <h2 className="text-xl font-semibold mb-2">🏁 Ergebnisse</h2>
+          <p>Vergleiche Zeiten aus Pool & Ocean Wettkämpfen aller Nationen.</p>
+        </a>
+
+        <a href="/about" className="card p-8 hover:shadow-lg transition rounded-lg">
+          <h2 className="text-xl font-semibold mb-2">ℹ️ Über das Projekt</h2>
+          <p>Erfahre mehr über LSranks und wie du mitmachen oder Daten einsenden kannst.</p>
+        </a>
+      </div>
+    </div>
   );
 }
