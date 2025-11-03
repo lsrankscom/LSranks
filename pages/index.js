@@ -1,29 +1,40 @@
+import Head from 'next/head';
+
 export default function Home() {
   return (
-    <div className="text-center space-y-10">
-      <h1 className="text-4xl font-bold mt-10 text-brand-700 dark:text-brand-400">
-        Willkommen bei LSranks
-      </h1>
-      <p className="text-gray-600 dark:text-gray-300">
-        Deine globale Plattform für Lifesaving Ergebnisse, Ranglisten und Rekorde.
-      </p>
+    <>
+      <Head>
+        <title>LSRanks — Lifesaving Results Platform</title>
+      </Head>
 
-      <div className="grid md:grid-cols-3 gap-6 mt-10">
-        <a href="/records" className="card p-8 hover:shadow-lg transition rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">🌍 Weltrekorde</h2>
-          <p>Alle offiziellen Lifesaving-Rekorde weltweit, sortiert nach Disziplin und Nation.</p>
-        </a>
+      <main className="mx-auto max-w-4xl px-4 py-10 text-center">
+        <h1 className="text-4xl font-bold text-slate-800 mb-6">
+          Welcome to LSRanks
+        </h1>
 
-        <a href="/results" className="card p-8 hover:shadow-lg transition rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">🏁 Ergebnisse</h2>
-          <p>Vergleiche Zeiten aus Pool & Ocean Wettkämpfen aller Nationen.</p>
-        </a>
+        <p className="text-lg text-slate-600 mb-8">
+          The international Lifesaving Results Platform — tracking and comparing records worldwide.
+        </p>
 
-        <a href="/about" className="card p-8 hover:shadow-lg transition rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">ℹ️ Über das Projekt</h2>
-          <p>Erfahre mehr über LSranks und wie du mitmachen oder Daten einsenden kannst.</p>
-        </a>
-      </div>
-    </div>
+        {/* Hinweisbox */}
+        <div className="mx-auto max-w-2xl rounded-lg border border-amber-300 bg-amber-50 p-5 shadow-sm">
+          <p className="text-amber-900 text-sm sm:text-base leading-relaxed">
+            <strong>Important Notice:</strong>  
+            This website is currently under development.  
+            Data and results are being synchronized and verified — accuracy cannot be fully guaranteed at this stage.  
+            Please check back soon for confirmed and up-to-date records.
+          </p>
+        </div>
+
+        <div className="mt-10">
+          <a
+            href="/records"
+            className="inline-block rounded bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700 transition"
+          >
+            View World Records
+          </a>
+        </div>
+      </main>
+    </>
   );
 }
