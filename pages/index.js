@@ -1,84 +1,80 @@
 // pages/index.js
-import { useState, useEffect, useRef } from 'react';
-import Layout from '../components/Layout';
-import { useI18n } from '../lib/i18n';
+import React from 'react';
+import Link from 'next/link';
 
-export default function Home() {
-  const { t } = useI18n();
-  const [q, setQ] = useState('');
-  const [hits, setHits] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const abortRef = useRef();
-
-  useEffect(() => {
-    if (!q) { setHits([]); return; }
-    setLoading(true);
-    if (abortRef.current) abortRef.current.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    const run = async () => {
-      try {
-        const res = await fetch(`/api/athletes-search?q=${encodeURIComponent(q)}&limit=10`, { signal: ctrl.signal });
-        const data = await res.json();
-        setHits(data.results || []);
-      } catch {}
-      setLoading(false);
-    };
-    const id = setTimeout(run, 200); // debounce
-    return () => clearTimeout(id);
-  }, [q]);
+export default function HomePage({ highlight = null, athletes = [], competitions = [], news = [] }) {
+  const safeAthletes = Array.isArray(athletes) ? athletes : [];
+  const safeCompetitions = Array.isArray(competitions) ? competitions : [];
+  const safeNews = Array.isArray(news) ? news : [];
+  const hero = highlight ?? { title: 'Welcome to LSranks', subtitle: 'Rankings, results & schedules' };
 
   return (
-    <Layout>
-      {/* Hero */}
-      <section className="rounded-2xl overflow-hidden shadow-lg bg-gradient-to-r from-rose-500 to-pink-500 text-white">
-        <div className="px-6 py-10 md:px-10 md:py-14">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{t('hero_title')}</h1>
-          <p className="mt-2 text-white/90">{t('hero_sub')}</p>
+    <main style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      <header style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0 }}>{hero.title}</h1>
+        <p style={{ marginTop: 8, color: '#666' }}>{hero.subtitle}</p>
+      </header>
 
-          {/* Search */}
-          <div className="mt-6 max-w-2xl">
-            <div className="relative">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t('search_placeholder')}
-                className="w-full rounded-xl bg-white/95 text-gray-900 placeholder-gray-500 px-4 py-3 pr-12 shadow focus:outline-none focus:ring-4 ring-white/30"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                {loading ? <span className="animate-pulse">…</span> : '🔎'}
-              </div>
-            </div>
-
-            {/* Results dropdown */}
-            {hits.length > 0 && (
-              <ul className="mt-2 rounded-xl bg-white/95 text-gray-900 shadow divide-y max-h-80 overflow-auto">
-                {hits.map((a) => (
-                  <li key={a.id} className="px-4 py-2 hover:bg-gray-100">
-                    <a href={`/athletes/${a.id}`} className="flex items-center justify-between">
-                      <span className="font-semibold">{a.full_name}</span>
-                      <span className="text-sm text-gray-500">{[a.club, a.nation].filter(Boolean).join(' · ')}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ marginBottom: 8 }}>Upcoming Competitions</h2>
+        {safeCompetitions.length === 0 ? (
+          <p>No competitions yet.</p>
+        ) : (
+          <ul>
+            {safeCompetitions.map((c, i) => (
+              <li key={c?.id ?? i}>
+                {c?.name ?? 'Unnamed'} {c?.date ? `— ${c.date}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div style={{ marginTop: 8 }}>
+          <Link href="/competitions">All competitions →</Link>
         </div>
       </section>
 
-      {/* Teaser Cards (optional) */}
-      <div className="mt-8 grid sm:grid-cols-2 gap-4">
-        <a href="/competitions" className="rounded-xl border border-gray-200 p-4 hover:border-gray-300">
-          <h3 className="font-bold">{t('competitions')}</h3>
-          <p className="text-sm text-gray-600 mt-1">{t('competitions_teaser')}</p>
-        </a>
-        <a href="/records" className="rounded-xl border border-gray-200 p-4 hover:border-gray-300">
-          <h3 className="font-bold">{t('records')}</h3>
-          <p className="text-sm text-gray-600 mt-1">{t('records_teaser')}</p>
-        </a>
-      </div>
-    </Layout>
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ marginBottom: 8 }}>Athletes</h2>
+        {safeAthletes.length === 0 ? (
+          <p>No athletes yet.</p>
+        ) : (
+          <ul>
+            {safeAthletes.map((a, i) => (
+              <li key={a?.id ?? i}>
+                <Link href={`/athletes/${a?.id ?? ''}`}>{a?.name ?? 'Unnamed Athlete'}</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 style={{ marginBottom: 8 }}>News</h2>
+        {safeNews.length === 0 ? (
+          <p>No news yet.</p>
+        ) : (
+          <ul>
+            {safeNews.map((n, i) => (
+              <li key={n?.id ?? i}>
+                {n?.title ?? 'Untitled'} {n?.date ? `— ${n.date}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
+}
+
+// WICHTIG: SSR statt SSG, damit beim Build keine undefined-Maps craschen
+export async function getServerSideProps() {
+  // TODO: Hier später echtes Laden (DB/API). Jetzt nur sichere Defaults.
+  return {
+    props: {
+      highlight: { title: 'LSranks', subtitle: 'Lifesaving rankings & results' },
+      athletes: [],
+      competitions: [],
+      news: []
+    }
+  };
 }
