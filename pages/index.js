@@ -1,102 +1,97 @@
 // pages/index.js
-import React from 'react';
 import Link from 'next/link';
+import { getCompetitions, getAthletes, getNews } from '../lib/data';
 
-export default function HomePage({ highlight, athletes, competitions, news }) {
-  const safeAthletes = Array.isArray(athletes) ? athletes : [];
-  const safeCompetitions = Array.isArray(competitions) ? competitions : [];
-  const safeNews = Array.isArray(news) ? news : [];
-  const hero = highlight ?? { title: 'LSranks', subtitle: 'Lifesaving rankings & results' };
+export default function Home({ competitions, athletes, news }) {
+  const comps = Array.isArray(competitions) ? competitions.slice(0, 5) : [];
+  const aths = Array.isArray(athletes) ? athletes.slice(0, 8) : [];
+  const nws = Array.isArray(news) ? news.slice(0, 5) : [];
 
   return (
-    <main style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      <header style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>{hero.title}</h1>
-        <p style={{ marginTop: 8, color: '#666' }}>{hero.subtitle}</p>
-      </header>
-
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ marginBottom: 8 }}>Upcoming Competitions</h2>
-        {safeCompetitions.length === 0 ? (
-          <p>No competitions yet.</p>
-        ) : (
-          <ul>
-            {safeCompetitions.map((c, i) => (
-              <li key={c?.id ?? i}>
-                {c?.name ?? 'Unnamed'} {c?.date ? `— ${c.date}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-        <div style={{ marginTop: 8 }}>
-          <Link href="/competitions">All competitions →</Link>
+    <>
+      <div className="section">
+        <div className="section-header">
+          <h2 className="section-title">LSranks</h2>
+          <span className="badge">v3 · new design</span>
         </div>
-      </section>
+        <div className="section-content">
+          <p className="muted">Lifesaving rankings & results — fast, clean, consistent.</p>
+        </div>
+      </div>
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ marginBottom: 8 }}>Athletes</h2>
-        {safeAthletes.length === 0 ? (
-          <p>No athletes yet.</p>
-        ) : (
-          <ul>
-            {safeAthletes.map((a, i) => (
-              <li key={a?.id ?? i}>
-                <Link href={`/athletes/${a?.id ?? ''}`}>{a?.name ?? 'Unnamed Athlete'}</Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="section">
+        <div className="section-header">
+          <h3 className="section-title">Upcoming Competitions</h3>
+          <Link className="btn" href="/competitions">All competitions →</Link>
+        </div>
+        <div className="section-content">
+          {comps.length === 0 ? <p className="muted">No competitions yet.</p> : (
+            <table className="table">
+              <thead>
+                <tr><th>Name</th><th>Date</th><th>Location</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {comps.map((c, i) => (
+                  <tr key={c?.id ?? i}>
+                    <td>{c?.name ?? '—'}</td>
+                    <td>{c?.date ?? '—'}</td>
+                    <td>{c?.location ?? '—'}</td>
+                    <td>{c?.status ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
 
-      <section>
-        <h2 style={{ marginBottom: 8 }}>News</h2>
-        {safeNews.length === 0 ? (
-          <p>No news yet.</p>
-        ) : (
-          <ul>
-            {safeNews.map((n, i) => (
-              <li key={n?.id ?? i}>
-                {n?.title ?? 'Untitled'} {n?.date ? `— ${n.date}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+      <div className="section">
+        <div className="section-header">
+          <h3 className="section-title">Athletes</h3>
+          <Link className="btn" href="/athletes">Browse →</Link>
+        </div>
+        <div className="section-content">
+          {aths.length === 0 ? <p className="muted">No athletes yet.</p> : (
+            <div className="list" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))'}}>
+              {aths.map((a, i) => (
+                <div className="card" key={a?.id ?? i}>
+                  <div style={{fontWeight:600}}>{a?.name ?? 'Unnamed'}</div>
+                  <div className="muted">{a?.club ?? a?.country ?? '—'}</div>
+                  <div style={{marginTop:10}}>
+                    <Link className="btn" href={`/athletes/${a?.id ?? ''}`}>Profile →</Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <h3 className="section-title">News</h3>
+          <Link className="btn" href="/news">All news →</Link>
+        </div>
+        <div className="section-content">
+          {nws.length === 0 ? <p className="muted">No news yet.</p> : (
+            <ul className="list">
+              {nws.map((n, i) => (
+                <li className="card" key={n?.id ?? i}>
+                  <strong>{n?.title ?? 'Untitled'}</strong>
+                  <div className="muted">{n?.date ?? ''}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
-// Lädt Daten sicher aus Supabase (wenn ENV vorhanden) – kein Crash bei Fehlern
 export async function getServerSideProps() {
-  // Defaults, falls irgendwas schiefgeht
-  let highlight = { title: 'LSranks', subtitle: 'Lifesaving rankings & results' };
-  let athletes = [];
-  let competitions = [];
-  let news = [];
-
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      // Passe Tabellennamen/Spalten bei Bedarf an
-      const [{ data: compData }, { data: athData }, { data: newsData }] = await Promise.all([
-        supabase.from('competitions').select('id,name,date').order('date', { ascending: true }),
-        supabase.from('athletes').select('id,name').limit(20),
-        supabase.from('news').select('id,title,date').order('date', { ascending: false }).limit(10),
-      ]);
-
-      competitions = Array.isArray(compData) ? compData : [];
-      athletes = Array.isArray(athData) ? athData : [];
-      news = Array.isArray(newsData) ? newsData : [];
-    }
-  } catch {
-    // schluckt Fehler und liefert leere Listen -> Seite bleibt online
-  }
-
-  return { props: { highlight, athletes, competitions, news } };
+  const [competitions, athletes, news] = await Promise.all([
+    getCompetitions(10), getAthletes(12), getNews(10)
+  ]);
+  return { props: { competitions, athletes, news } };
 }
