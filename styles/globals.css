@@ -34,3 +34,7 @@ a {
 .badge {
   @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700;
 }
+/* Sanfte Übergänge für Links und Buttons */
+a, button {
+  transition: all 0.2s ease;
+}
