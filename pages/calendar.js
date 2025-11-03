@@ -1,12 +1,28 @@
-import Layout from '../components/Layout';
-import { useI18n } from '../lib/i18n';
+// pages/calendar.js
+import React from 'react';
 
-export default function Calendar() {
-  const { t } = useI18n();
+export default function CalendarPage({ events = [] }) {
+  const safeEvents = Array.isArray(events) ? events : [];
+
   return (
-    <Layout>
-      <h1 className="text-2xl font-bold">{t('calendar')}</h1>
-      <p className="text-gray-600 mt-2">{t('calendar_intro')}</p>
-    </Layout>
+    <main style={{ padding: 24 }}>
+      <h1>Calendar</h1>
+      {safeEvents.length === 0 ? (
+        <p>No events scheduled.</p>
+      ) : (
+        <ul>
+          {safeEvents.map((e, i) => (
+            <li key={e?.id ?? i}>
+              {e?.title ?? 'Untitled'} {e?.date ? `— ${e.date}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
+}
+
+export async function getServerSideProps() {
+  // TODO: echtes Laden später
+  return { props: { events: [] } };
 }
