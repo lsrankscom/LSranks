@@ -1,86 +1,63 @@
 import { createClient } from "@supabase/supabase-js";
-import Navbar from "../components/Navbar";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+export async function getServerSideProps() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
 
-function msToTime(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const hundredths = Math.floor((ms % 1000) / 10);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}.${hundredths
-    .toString()
-    .padStart(2, "0")}`;
+  const { data, error } = await supabase
+    .from("results")
+    .select("*")
+    .order("competition_id", { ascending: false });
+
+  return { props: { rows: data ?? [], err: error?.message ?? null } };
 }
 
 export default function Results({ rows, err }) {
+  if (err) return <p className="text-red-500">Error: {err}</p>;
+
   return (
-    <>
-      <Navbar />
-      <main className="container py-10">
-        <h1 className="text-2xl font-bold mb-6 text-brand-700">
-          Latest Results
-        </h1>
-
-        {err && <p className="text-red-600">{err}</p>}
-
-        {!rows || rows.length === 0 ? (
-          <p className="text-gray-600">
-            No results yet. Add some in Supabase → <strong>results</strong>.
-          </p>
-        ) : (
-          <div className="card overflow-auto">
-            <table className="table min-w-[900px]">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="py-3 px-4">Competition</th>
-                  <th className="py-3 px-2">Discipline</th>
-                  <th className="py-3 px-2 text-center">Gender</th>
-                  <th className="py-3 px-2">Round</th>
-                  <th className="py-3 px-4">Athlete</th>
-                  <th className="py-3 px-2 text-center">Nation</th>
-                  <th className="py-3 px-2">Club</th>
-                  <th className="py-3 px-2 text-center">Time</th>
-                  <th className="py-3 px-2 text-center">Rank</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td className="py-2 px-4">
-                      {r.competitions?.name || "-"}
-                    </td>
-                    <td className="py-2 px-2">{r.discipline_code}</td>
-                    <td className="py-2 px-2 text-center">{r.gender}</td>
-                    <td className="py-2 px-2">{r.round}</td>
-                    <td className="py-2 px-4">{r.athlete_name}</td>
-                    <td className="py-2 px-2 text-center">{r.nation}</td>
-                    <td className="py-2 px-2">{r.club}</td>
-                    <td className="py-2 px-2 text-center">
-                      {r.time_ms ? msToTime(r.time_ms) : r.status}
-                    </td>
-                    <td className="py-2 px-2 text-center">
-                      {r.rank ?? "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </main>
-    </>
+    <div>
+      <h1 className="text-2xl font-bold mb-6 text-brand-700 dark:text-brand-400">
+        🏁 Ergebnisse aus Pool & Ocean Wettkämpfen
+      </h1>
+      <div className="overflow-x-auto">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Discipline</th>
+              <th>Gender</th>
+              <th>Athlete</th>
+              <th>Nation</th>
+              <th>Club</th>
+              <th>Rank</th>
+              <th>Time</th>
+              <th>Competition</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                <td>{r.discipline_code}</td>
+                <td>{r.gender}</td>
+                <td>{r.athlete_name}</td>
+                <td>
+                  <span className="badge badge-nation">{r.nation}</span>
+                </td>
+                <td>
+                  <span className="badge badge-club">{r.club}</span>
+                </td>
+                <td>{r.rank}</td>
+                <td className="time-fastest">
+                  {(r.time_ms / 1000).toFixed(2)} s
+                </td>
+                <td>{r.competition_name ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
-}
-
-export async function getServerSideProps() {
-  const { data, error } = await supabase
-    .from("results")
-    .select("*, competitions(name)")
-    .order("competition_id", { ascending: false })
-    .limit(50);
-  return { props: { rows: data ?? [], err: error?.message ?? null } };
 }
