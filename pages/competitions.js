@@ -1,12 +1,28 @@
-import Layout from '../components/Layout';
-import { useI18n } from '../lib/i18n';
+// pages/competitions.js
+import React from 'react';
 
-export default function Competitions() {
-  const { t } = useI18n();
+export default function CompetitionsPage({ competitions = [] }) {
+  const safeCompetitions = Array.isArray(competitions) ? competitions : [];
+
   return (
-    <Layout>
-      <h1 className="text-2xl font-bold">{t('competitions')}</h1>
-      <p className="text-gray-600 mt-2">{t('competitions_intro')}</p>
-    </Layout>
+    <main style={{ padding: 24 }}>
+      <h1>Competitions</h1>
+      {safeCompetitions.length === 0 ? (
+        <p>No competitions yet.</p>
+      ) : (
+        <ul>
+          {safeCompetitions.map((c, i) => (
+            <li key={c?.id ?? i}>
+              {c?.name ?? 'Unnamed'} {c?.date ? `— ${c.date}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
+}
+
+export async function getServerSideProps() {
+  // TODO: echtes Laden später
+  return { props: { competitions: [] } };
 }
