@@ -1,10 +1,14 @@
-import "../styles/globals.css";
-import Layout from "../components/Layout";
+// pages/_app.js
+import '../styles/globals.css';
+import { I18nProvider } from '../lib/i18n';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
-export default function App({ Component, pageProps }) {
+export default function MyApp({ Component, pageProps }) {
   return (
-    <Layout>
+    <I18nProvider>
+      {/* Sprachwahl global */}
+      <LanguageSwitcher />
       <Component {...pageProps} />
-    </Layout>
+    </I18nProvider>
   );
 }
