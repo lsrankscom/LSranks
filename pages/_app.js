@@ -1,15 +1,18 @@
 // pages/_app.js
-import '../styles/globals.css';
-import { I18nProvider } from '../lib/i18n';
-import LanguageSwitcher from '../components/LanguageSwitcher';
-import NavBar from '../components/NavBar';
+import { useEffect } from 'react'
+import Layout from '../components/Layout'
 
 export default function MyApp({ Component, pageProps }) {
+  // Sprache aus ?lang merken (damit Navbar und Seiten konsistent sind)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lang = params.get('lang');
+    if (lang) localStorage.setItem('lang', lang);
+  }, []);
+
   return (
-    <I18nProvider>
-      <NavBar />
-      <LanguageSwitcher />
+    <Layout>
       <Component {...pageProps} />
-    </I18nProvider>
+    </Layout>
   );
 }
