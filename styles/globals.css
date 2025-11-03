@@ -1,27 +1,10 @@
-/* styles/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: leichte Grund-Optik */
-:root {
-  color-scheme: light dark;
-}
+:root { color-scheme: light dark; }
+html, body, #__next { height: 100%; }
 
-html, body, #__next {
-  height: 100%;
-}
-
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
-}
-
-/* Container-Helfer, damit Inhalte schön eingerückt sind */
-.container {
-  @apply mx-auto px-4 sm:px-6 lg:px-8;
-}
-
-/* Links hübscher */
-a {
-  @apply text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline;
-}
+body { @apply bg-gray-50 text-gray-900 antialiased; }
+.container { @apply mx-auto px-4 sm:px-6 lg:px-8; }
+a { @apply text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline; }
