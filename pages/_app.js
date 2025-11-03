@@ -1,18 +1,14 @@
 // pages/_app.js
-import { useEffect } from 'react'
-import Layout from '../components/Layout'
+import Layout from '../components/Layout';
+import { I18nProvider } from '../lib/i18n';
 
 export default function MyApp({ Component, pageProps }) {
-  // Sprache aus ?lang merken (damit Navbar und Seiten konsistent sind)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const lang = params.get('lang');
-    if (lang) localStorage.setItem('lang', lang);
-  }, []);
-
+  // Auf dem Server gibt's keine URL -> initialLang = 'en'
   return (
-    <Layout>
-      <Component {...pageProps} />
-    </Layout>
+    <I18nProvider initialLang="en">
+      <Layout>
+        <Component {...pageProps} />
+      </Layout>
+    </I18nProvider>
   );
 }
