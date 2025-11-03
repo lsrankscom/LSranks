@@ -1,89 +1,89 @@
-// components/NavBar.js
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { useI18n } from '../lib/i18n';
+// components/Navbar.js
+import Link from 'next/link'
+import { useRouter } from 'next/router'
 
-export default function NavBar() {
-  const { t } = useI18n();
+const LABELS = {
+  en: { pool: 'Pool', records: 'Records', results: 'Results', about: 'About' },
+  de: { pool: 'Pool', records: 'Rekorde', results: 'Ergebnisse', about: 'Über' },
+  fr: { pool: 'Piscine', records: 'Records', results: 'Résultats', about: 'À propos' },
+  es: { pool: 'Piscina', records: 'Récords', results: 'Resultados', about: 'Acerca de' },
+  it: { pool: 'Piscina', records: 'Record', results: 'Risultati', about: 'Info' },
+  pl: { pool: 'Basen', records: 'Rekordy', results: 'Wyniki', about: 'O nas' },
+  zh: { pool: '泳池', records: '纪录', results: '成绩', about: '关于' },
+  ja: { pool: 'プール', records: '記録', results: '結果', about: '概要' },
+};
+
+function useLang() {
   const router = useRouter();
+  const q = router.query || {};
+  const lang = (q.lang || (typeof window !== 'undefined' && localStorage.getItem('lang')) || 'en').toString();
+  return (LABELS[lang] ? lang : 'en');
+}
 
-  const links = [
-    { href: '/pool',    label: t('nav_pool') },
-    { href: '/records', label: t('nav_records') },
-    { href: '/results', label: t('nav_results') },
-    { href: '/about',   label: t('nav_about') },
-  ];
+function withLang(href, lang) {
+  if (!href) return '#';
+  const url = new URL(href, 'http://x'); // base is ignored in Next
+  // keep existing query (if any) and set lang
+  const sp = new URLSearchParams(url.search);
+  sp.set('lang', lang);
+  const qs = sp.toString();
+  return `${url.pathname}${qs ? `?${qs}` : ''}`;
+}
+
+export default function Navbar() {
+  const router = useRouter();
+  const lang = useLang();
+  const L = LABELS[lang];
+
+  const basePath = (p) => withLang(p, lang);
 
   return (
-    <header style={wrap}>
-      <div style={inner}>
-        <Link href="/" style={brand}>LSRanks</Link>
-        <nav aria-label="Main">
-          <ul style={ul}>
-            {links.map((l) => {
-              const active = router.pathname === l.href;
-              return (
-                <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    style={{
-                      ...a,
-                      ...(active ? aActive : {}),
-                    }}
-                  >
-                    {l.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+    <header className="nav">
+      <div className="nav__inner">
+        <Link href={basePath('/')} className="brand">LSRanks</Link>
+        <nav className="links">
+          <Link href={basePath('/pool')}>{L.pool}</Link>
+          <Link href={basePath('/records')}>{L.records}</Link>
+          <Link href={basePath('/results')}>{L.results}</Link>
+          <Link href={basePath('/about')}>{L.about}</Link>
         </nav>
       </div>
+      <style jsx>{`
+        .nav {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          background: #0f172a; /* dunkelblau */
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .nav__inner {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 10px 16px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .brand {
+          font-weight: 700;
+          color: #60a5fa;
+          text-decoration: none;
+          letter-spacing: 0.3px;
+        }
+        .links {
+          display: flex;
+          gap: 18px;
+        }
+        .links :global(a) {
+          color: #e2e8f0;
+          text-decoration: none;
+          font-size: 14px;
+        }
+        .links :global(a:hover) {
+          color: #ffffff;
+          text-decoration: underline;
+        }
+      `}</style>
     </header>
   );
 }
-
-const wrap = {
-  position: 'sticky',
-  top: 0,
-  zIndex: 500,
-  background: '#0b2a4a',
-  borderBottom: '1px solid rgba(255,255,255,.08)',
-};
-
-const inner = {
-  maxWidth: 1100,
-  margin: '0 auto',
-  padding: '10px 14px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 20,
-};
-
-const brand = {
-  color: 'white',
-  textDecoration: 'none',
-  fontWeight: 700,
-  letterSpacing: '.3px',
-};
-
-const ul = {
-  listStyle: 'none',
-  display: 'flex',
-  gap: 16,
-  margin: 0,
-  padding: 0,
-};
-
-const a = {
-  color: 'rgba(255,255,255,.85)',
-  textDecoration: 'none',
-  fontWeight: 500,
-  padding: '6px 8px',
-  borderRadius: 8,
-};
-
-const aActive = {
-  color: '#fff',
-  background: 'rgba(255,255,255,.12)',
-};
