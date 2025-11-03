@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useI18n } from '../lib/i18n';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -7,6 +8,8 @@ const supabase = createClient(
 );
 
 export default function Records() {
+  const { t } = useI18n();
+
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -23,17 +26,10 @@ export default function Records() {
 
       let q = supabase.from('records').select('*');
 
-      if (filters.discipline) {
-        q = q.ilike('discipline_code', `%${filters.discipline}%`);
-      }
-      if (filters.nation) {
-        q = q.ilike('nation', `%${filters.nation}%`);
-      }
-      if (filters.gender) {
-        q = q.eq('gender', filters.gender);
-      }
-
-      // scope & eventType kannst du bei Bedarf auf deine Felder mappen
+      if (filters.discipline) q = q.ilike('discipline_code', `%${filters.discipline}%`);
+      if (filters.nation) q = q.ilike('nation', `%${filters.nation}%`);
+      if (filters.gender) q = q.eq('gender', filters.gender);
+      // scope / eventType: hier ggf. auf deine Felder mappen
 
       q = q.order('time_ms', { ascending: true });
 
@@ -67,15 +63,12 @@ export default function Records() {
       border: '1px solid #d9d9d9',
       borderRadius: 6
     },
-    tableWrap: {
-      width: '100%',
-      overflowX: 'hidden'
-    },
+    tableWrap: { width: '100%', overflowX: 'hidden' },
     table: {
       width: '100%',
-      tableLayout: 'fixed',        // Wichtig, damit Breiten greifen
+      tableLayout: 'fixed',
       borderCollapse: 'collapse',
-      fontSize: '0.9rem'           // kompakter
+      fontSize: '0.9rem'
     },
     th: {
       background: '#f6f7f8',
@@ -91,21 +84,14 @@ export default function Records() {
       overflow: 'hidden',
       textOverflow: 'ellipsis'
     },
-    // Spaltenbreiten (Summe ≈ 100%)
     colDiscipline: { width: '30%' },
     colG:          { width: '6%',  textAlign: 'center' },
-    colTime:       { width: '9%' , textAlign: 'right' },
+    colTime:       { width: '9%',  textAlign: 'right' },
     colAthlete:    { width: '25%' },
     colNation:     { width: '8%'  },
     colMeet:       { width: '14%' },
-    colDate:       { width: '8%'  , textAlign: 'right' },
-    footer: {
-      marginTop: '0.75rem',
-      fontSize: '0.8rem',
-      color: '#666',
-      textAlign: 'right'
-    },
-    // kleine Screens
+    colDate:       { width: '8%',  textAlign: 'right' },
+    footer: { marginTop: '0.75rem', fontSize: '0.8rem', color: '#666', textAlign: 'right' },
     responsive: `
       @media (max-width: 768px) {
         .filters input, .filters select { min-width: 110px; font-size: 0.85rem; }
@@ -122,22 +108,20 @@ export default function Records() {
 
   return (
     <div style={styles.page}>
-      {/* Inline „CSS“ für Media Query */}
       <style dangerouslySetInnerHTML={{ __html: styles.responsive }} />
 
-      <h1 style={styles.title}>World Records</h1>
+      <h1 style={styles.title}>{t('world_records')}</h1>
 
-      {/* Filter */}
       <div className="filters" style={styles.filtersWrap}>
         <select
           style={styles.input}
           value={filters.scope}
           onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
         >
-          <option value="">All categories</option>
-          <option value="open">Open only</option>
-          <option value="masters">Masters</option>
-          <option value="youth">Youth</option>
+          <option value="">{t('filter_scope_all')}</option>
+          <option value="open">{t('filter_scope_open')}</option>
+          <option value="masters">{t('filter_scope_masters')}</option>
+          <option value="youth">{t('filter_scope_youth')}</option>
         </select>
 
         <select
@@ -145,9 +129,9 @@ export default function Records() {
           value={filters.gender}
           onChange={(e) => setFilters({ ...filters, gender: e.target.value })}
         >
-          <option value="">All genders</option>
-          <option value="m">Men</option>
-          <option value="w">Women</option>
+          <option value="">{t('filter_gender_all')}</option>
+          <option value="m">{t('filter_gender_m')}</option>
+          <option value="w">{t('filter_gender_w')}</option>
         </select>
 
         <select
@@ -155,30 +139,29 @@ export default function Records() {
           value={filters.eventType}
           onChange={(e) => setFilters({ ...filters, eventType: e.target.value })}
         >
-          <option value="">Einzel & Staffeln</option>
-          <option value="individual">Einzel</option>
-          <option value="relay">Staffel</option>
+          <option value="">{t('filter_event_all')}</option>
+          <option value="individual">{t('filter_event_individual')}</option>
+          <option value="relay">{t('filter_event_relay')}</option>
         </select>
 
         <input
           style={{ ...styles.input, minWidth: 150 }}
-          placeholder="Nation (optional)"
+          placeholder={t('filter_nation')}
           value={filters.nation}
           onChange={(e) => setFilters({ ...filters, nation: e.target.value })}
         />
 
         <input
           style={{ ...styles.input, minWidth: 210 }}
-          placeholder="Disziplin-Suche (z. B. MANIKIN)"
+          placeholder={t('filter_disc')}
           value={filters.discipline}
           onChange={(e) => setFilters({ ...filters, discipline: e.target.value })}
         />
       </div>
 
-      {/* Tabelle */}
       <div style={styles.tableWrap}>
         {loading ? (
-          <p style={{ textAlign: 'center', margin: '1rem 0' }}>Loading records…</p>
+          <p style={{ textAlign: 'center', margin: '1rem 0' }}>{t('loading')}</p>
         ) : (
           <table style={styles.table}>
             <colgroup>
@@ -192,13 +175,13 @@ export default function Records() {
             </colgroup>
             <thead>
               <tr>
-                <th style={styles.th}>Discipline</th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>G</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Time</th>
-                <th style={styles.th}>Athlete / Team</th>
-                <th style={styles.th}>Nation</th>
-                <th style={styles.th}>Meet</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Date</th>
+                <th style={styles.th}>{t('col_discipline')}</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>{t('col_gender')}</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>{t('col_time')}</th>
+                <th style={styles.th}>{t('col_athlete')}</th>
+                <th style={styles.th}>{t('col_nation')}</th>
+                <th style={styles.th}>{t('col_meet')}</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>{t('col_date')}</th>
               </tr>
             </thead>
             <tbody>
@@ -209,9 +192,7 @@ export default function Records() {
                     {(r.gender || '').toUpperCase() || '—'}
                   </td>
                   <td style={{ ...styles.td, textAlign: 'right' }}>
-                    {typeof r.time_ms === 'number'
-                      ? (r.time_ms / 1000).toFixed(2)
-                      : '—'}
+                    {typeof r.time_ms === 'number' ? (r.time_ms / 1000).toFixed(2) : '—'}
                   </td>
                   <td style={styles.td}>{r.athlete_name || '—'}</td>
                   <td style={styles.td}>{r.nation || '—'}</td>
@@ -228,9 +209,7 @@ export default function Records() {
         )}
       </div>
 
-      <div style={styles.footer}>
-        Display is condensed for readability. Columns wrap/trim long text automatically.
-      </div>
+      <div style={styles.footer}>{t('table_note')}</div>
     </div>
   );
 }
