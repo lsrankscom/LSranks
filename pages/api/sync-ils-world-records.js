@@ -2,107 +2,213 @@
 import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
 
-const ILS_URL = process.env.ILS_WR_URLS || 'https://sport.ilsf.org/records';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const CRON_TOKEN = process.env.CRON_TOKEN;
+/**
+ * Diese Route:
+ * - prüft SYNC_TOKEN
+ * - lädt die ILSF-Seite(n)
+ * - extrahiert alle Weltrekorde aus Tabellen
+ * - upsertet in public.records auf den Unique-Key
+ *   (record_scope, discipline_code, gender, pool_length, timing)
+ */
 
-function getIncomingToken(req) {
-  // 1) ?token=...
-  if (req.query && typeof req.query.token === 'string') return req.query.token.trim();
-  // 2) x-cron-token: ...
-  const headerTok = req.headers['x-cron-token'];
-  if (typeof headerTok === 'string') return headerTok.trim();
-  // 3) Authorization: Bearer ...
-  const auth = req.headers.authorization || '';
-  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  return '';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  // WICHTIG: Service Role Key, damit RLS für Inserts/Updates nicht blockiert
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+const SYNC_TOKEN = process.env.SYNC_TOKEN;
+const SOURCE_URLS = (process.env.ILS_WR_URLS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+function parseTimeToMs(tstr) {
+  // akzeptiert "1:02.78" oder "46.11" etc.
+  if (!tstr) return null;
+  const s = String(tstr).trim();
+  const mm_ss_ms = s.split(':');
+  let totalMs = 0;
+  if (mm_ss_ms.length === 2) {
+    const mm = parseInt(mm_ss_ms[0], 10) || 0;
+    const ss_ms = parseFloat(mm_ss_ms[1].replace(',', '.')) || 0;
+    totalMs = mm * 60 * 1000 + Math.round(ss_ms * 1000);
+  } else {
+    const sec = parseFloat(s.replace(',', '.')) || 0;
+    totalMs = Math.round(sec * 1000);
+  }
+  return totalMs;
+}
+
+function normalizeGender(g) {
+  const s = (g || '').toLowerCase();
+  if (s.startsWith('m')) return 'M';
+  if (s.startsWith('w') || s.startsWith('f')) return 'W';
+  return null;
+}
+
+function normalizeTiming(t) {
+  const s = (t || '').toUpperCase();
+  if (s.includes('ET')) return 'ET';
+  if (s.includes('HT')) return 'HT';
+  return null;
+}
+
+function guessPoolLen(txt) {
+  // viele WR-Listen sind 50m; wenn explizit "25" vorkommt, nimm 25
+  const s = (txt || '').toLowerCase();
+  if (s.includes('25')) return 25;
+  if (s.includes('50')) return 50;
+  return 50; // Default
+}
+
+async function fetchHtml(url) {
+  const res = await fetch(url, { headers: { 'user-agent': 'LSranks sync bot' } });
+  if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${url}`);
+  return await res.text();
+}
+
+function parseIlsfTables(html, url) {
+  const $ = cheerio.load(html);
+  const rows = [];
+
+  // Jede Tabelle auf der Seite durchgehen
+  $('table').each((_ti, table) => {
+    const $table = $(table);
+    const headers = [];
+    $table.find('thead th').each((_hi, th) => headers.push($(th).text().trim()));
+
+    // Wenn keine thead, versuch die erste tr als header
+    if (headers.length === 0) {
+      const $hdr = $table.find('tr').first().find('th,td');
+      $hdr.each((_hi, th) => headers.push($(th).text().trim()));
+    }
+
+    // Spalten-Index grob erkennen
+    const idxEvent     = headers.findIndex(h => /event/i.test(h));
+    const idxCompet    = headers.findIndex(h => /competitor|athlete/i.test(h));
+    const idxDate      = headers.findIndex(h => /date/i.test(h));
+    const idxTime      = headers.findIndex(h => /^time$/i.test(h));
+    const idxCity      = headers.findIndex(h => /place|city|venue/i.test(h));
+
+    // Body-Zeilen
+    $table.find('tbody tr').each((_ri, tr) => {
+      const $tds = $(tr).find('td');
+      if ($tds.length < 3) return;
+
+      const eventTxt  = idxEvent  >= 0 ? $($tds[idxEvent]).text().trim()  : '';
+      const athlete   = idxCompet >= 0 ? $($tds[idxCompet]).text().trim() : '';
+      const dateTxt   = idxDate   >= 0 ? $($tds[idxDate]).text().trim()   : '';
+      const timeTxt   = idxTime   >= 0 ? $($tds[idxTime]).text().trim()   : '';
+      const cityTxt   = idxCity   >= 0 ? $($tds[idxCity]).text().trim()   : '';
+
+      if (!eventTxt || !timeTxt) return;
+
+      // Disziplin- und Metadaten heuristisch aus Eventtext
+      const ev = eventTxt.replace(/\s+/g, ' ').trim();
+      // Beispiele: "Open - 100m Manikin Carry with Fins - Women"
+      // Zerlegen:
+      const up = ev.toUpperCase();
+
+      let gender = null;
+      if (up.includes('WOMEN')) gender = 'W';
+      else if (up.includes('MEN')) gender = 'M';
+
+      let scope = 'world'; // hier nur Weltrekorde
+      // KiPo: weitere Scopes später (national etc.)
+
+      // Disziplin als Kode (z.B. OPEN_100M_MANIKIN_CARRY_WITH_FINS)
+      let discipline_code = up
+        .replace(/\b(OPEN|MEN|WOMEN|MASTERS|YOUTH)\b/g, '')
+        .replace(/[^A-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+
+      // Timing/Beckenlänge
+      const timing  = normalizeTiming(headers.join(' ') + ' ' + eventTxt) || 'ET';
+      const poolLen = guessPoolLen(headers.join(' ') + ' ' + ev);
+
+      // Zeit in ms
+      const time_ms = parseTimeToMs(timeTxt);
+
+      // Datum
+      let record_date = null;
+      const m = dateTxt.match(/(\d{2})-(\d{2})-(\d{4})|(\d{4})-(\d{2})-(\d{2})/);
+      if (m) {
+        if (m[3]) record_date = `${m[3]}-${m[2]}-${m[1]}`;           // dd-mm-yyyy
+        else if (m[6]) record_date = `${m[4]}-${m[5]}-${m[6]}`;      // yyyy-mm-dd
+      }
+
+      rows.push({
+        record_scope: scope,
+        discipline_code,
+        gender: normalizeGender(gender),
+        pool_length: poolLen,
+        timing,
+        time_ms,
+        athlete_name: athlete || null,
+        nation: null,
+        club: null,
+        meet_name: null,
+        city: cityTxt || null,
+        country: null,
+        record_date: record_date ? record_date : null,
+        source_url: url,
+        updated_at: new Date().toISOString()
+      });
+    });
+  });
+
+  return rows;
 }
 
 export default async function handler(req, res) {
-  // Nur GET/POST zulassen
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-  }
-
-  // Tokenprüfung (in Dev ohne CRON_TOKEN wird nicht blockiert)
-  const incoming = getIncomingToken(req);
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd) {
-    if (!CRON_TOKEN) {
-      return res.status(500).json({
-        ok: false,
-        error: 'server_misconfigured',
-        hint: 'CRON_TOKEN is not set in Vercel Environment Variables (Production).'
-      });
-    }
-    if (incoming !== CRON_TOKEN) {
+  try {
+    // 1) Token prüfen
+    const token = (req.query.token || '').toString();
+    if (!SYNC_TOKEN || token !== SYNC_TOKEN) {
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
-  }
 
-  try {
-    // --- Supabase
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // 2) Quellen sammeln
+    const urls = SOURCE_URLS.length ? SOURCE_URLS : ['https://sport.ilsf.org/records'];
 
-    // --- HTML holen & parsen
-    const resp = await fetch(ILS_URL, { headers: { 'User-Agent': 'LSRanks bot' } });
-    const html = await resp.text();
-    const $ = cheerio.load(html);
+    // 3) Seiten laden & parsen
+    let parsed = [];
+    for (const url of urls) {
+      const html = await fetchHtml(url);
+      const rows = parseIlsfTables(html, url);
+      parsed = parsed.concat(rows);
+    }
 
-    // Tabellen parsen (vereinfacht – du nutzt bereits deine funktionierende Logik)
-    const rows = [];
-    $('table').each((_, t) => {
-      $(t)
-        .find('tbody tr')
-        .each((__, tr) => {
-          const tds = $(tr).find('td');
-          if (tds.length < 4) return;
-          const event = $(tds[0]).text().trim();
-          const competitor = $(tds[1]).text().trim();
-          const date = $(tds[2]).text().trim();
-          const time = $(tds[3]).text().trim();
+    // 4) Filtern: nur Datensätze mit den Pflichtfeldern
+    const payload = parsed.filter(
+      r => r.record_scope && r.discipline_code && r.gender && r.pool_length && r.timing && r.time_ms
+    );
 
-          // Aus Event → disziplin code/gender ableiten (du hast dafür schon Mapping/RegEx – hier nur Platzhalter)
-          rows.push({
-            record_scope: 'world',
-            discipline_code: event.replace(/\s+/g, '_').toUpperCase(),
-            gender: /women/i.test(event) ? 'W' : /men/i.test(event) ? 'M' : null,
-            pool_length: 50,
-            timing: 'ET',
-            time_ms: null, // wenn du ms aus time berechnest → hier einsetzen
-            athlete_name: competitor || null,
-            nation: null,
-            club: null,
-            meet_name: null,
-            record_date: date ? new Date(Date.parse(date)) : null,
-            source_url: ILS_URL,
-            updated_at: new Date().toISOString()
-          });
-        });
-    });
-
-    // Upsert (entspricht deinem vorhandenen Unique Index)
-    // Unique-Index auf (record_scope, discipline_code, gender, pool_length, timing) wird vorausgesetzt.
+    // 5) Upsert in public.records
+    // On conflict: exakt die 5 Spalten, für die es bei dir den Unique-Index gibt
     let upserts = 0;
-    if (rows.length) {
-      const { error } = await supabase
+    if (payload.length) {
+      const { error, count } = await supabase
         .from('records')
-        .upsert(rows, {
+        .upsert(payload, {
           onConflict: 'record_scope,discipline_code,gender,pool_length,timing',
-          ignoreDuplicates: false
+          ignoreDuplicates: false,
+          returning: 'minimal',
+          count: 'exact'
         });
-      if (error) {
-        return res.status(400).json({ ok: false, error: error.message });
-      }
-      upserts = rows.length;
+
+      if (error) throw error;
+      upserts = count || 0;
     }
 
     return res.status(200).json({
       ok: true,
-      imported: upserts
+      tablesFound: 'n/a',
+      parsedRows: parsed.length,
+      upserts
     });
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message || 'unknown_error' });
+  } catch (err) {
+    return res.status(200).json({ ok: false, error: String(err?.message || err) });
   }
 }
