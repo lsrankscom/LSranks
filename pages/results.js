@@ -1,4 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import { nationToFlag } from "../lib/flags";
+
+function medalClass(rank) {
+  const r = Number(rank);
+  if (r === 1) return "medal medal-gold";
+  if (r === 2) return "medal medal-silver";
+  if (r === 3) return "medal medal-bronze";
+  return "";
+}
 
 export async function getServerSideProps(context) {
   const disc = context.query.disc || null;
@@ -37,7 +46,7 @@ export default function Results({ rows, err, disc }) {
       </h1>
 
       <div className="overflow-x-auto">
-        <table className="table">
+        <table className="table w-full text-sm border-collapse overflow-hidden rounded-lg">
           <thead>
             <tr>
               <th>Discipline</th>
@@ -51,24 +60,36 @@ export default function Results({ rows, err, disc }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td>{r.discipline_code}</td>
-                <td>{r.gender}</td>
-                <td>{r.athlete_name}</td>
-                <td><span className="badge badge-nation">{r.nation}</span></td>
-                <td><span className="badge badge-club">{r.club}</span></td>
-                <td>{r.rank}</td>
-                <td className="time-fastest">{(r.time_ms / 1000).toFixed(2)} s</td>
-                <td>{r.competition_name ?? "—"}</td>
-              </tr>
-            ))}
+            {rows.map((r, i) => {
+              const flag = nationToFlag(r.nation);
+              return (
+                <tr key={i}>
+                  <td>{r.discipline_code}</td>
+                  <td>{r.gender}</td>
+                  <td>{r.athlete_name}</td>
+                  <td>
+                    <span className="mr-1">{flag}</span>
+                    <span className="badge badge-nation">{r.nation}</span>
+                  </td>
+                  <td><span className="badge badge-club">{r.club}</span></td>
+                  <td>
+                    {r.rank ? (
+                      <span className={medalClass(r.rank)}>{r.rank}</span>
+                    ) : "—"}
+                  </td>
+                  <td className="time-fastest">
+                    {(r.time_ms / 1000).toFixed(2)} s
+                  </td>
+                  <td>{r.competition_name ?? "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       <p className="mt-4 text-sm text-gray-500">
-        Tipp: Nutze <code>?disc=CODE</code> in der URL, z. B. <code>/results?disc=R4x50_TUBE</code>
+        Tipp: Filter per <code>?disc=CODE</code>, z. B. <code>/results?disc=R4x50_TUBE</code>
       </p>
     </div>
   );
