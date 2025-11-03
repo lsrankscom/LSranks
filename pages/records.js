@@ -1,27 +1,40 @@
 import { createClient } from "@supabase/supabase-js";
 
-export async function getServerSideProps() {
+export async function getServerSideProps(context) {
+  const disc = context.query.disc || null;
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
-  const { data, error } = await supabase
-    .from("records")
-    .select("*")
-    .order("discipline_code", { ascending: true });
+  let query = supabase.from("records").select("*");
 
-  return { props: { rows: data ?? [], err: error?.message ?? null } };
+  if (disc) {
+    query = query.eq("discipline_code", disc);
+  } else {
+    // Standard: nur Pool-Records anzeigen (kannst du ändern)
+    const poolCodes = [
+      "200_OBS","50_MAN","100_MAN_FINS","100_MEDLEY","100_TOW_FINS","200_SUPER",
+      "R4x50_OBS","R4x25_MAN","R4x50_MEDLEY","R4x50_TUBE","LINE_THROW"
+    ];
+    query = query.in("discipline_code", poolCodes);
+  }
+
+  const { data, error } = await query.order("discipline_code", { ascending: true });
+
+  return { props: { rows: data ?? [], err: error?.message ?? null, disc: disc || null } };
 }
 
-export default function Records({ rows, err }) {
+export default function Records({ rows, err, disc }) {
   if (err) return <p className="text-red-500">Error: {err}</p>;
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 text-brand-700 dark:text-brand-400">
-        🌍 Weltrekorde im Rettungssport
+        🌍 World / National Records {disc ? `– ${disc}` : ""}
       </h1>
+
       <div className="overflow-x-auto">
         <table className="table">
           <thead>
@@ -41,16 +54,10 @@ export default function Records({ rows, err }) {
               <tr key={i}>
                 <td>{r.discipline_code}</td>
                 <td>{r.gender}</td>
-                <td className="time-fastest">
-                  {(r.time_ms / 1000).toFixed(2)} s
-                </td>
+                <td className="time-fastest">{(r.time_ms / 1000).toFixed(2)} s</td>
                 <td>{r.athlete_name}</td>
-                <td>
-                  <span className="badge badge-nation">{r.nation}</span>
-                </td>
-                <td>
-                  <span className="badge badge-club">{r.club}</span>
-                </td>
+                <td><span className="badge badge-nation">{r.nation}</span></td>
+                <td><span className="badge badge-club">{r.club}</span></td>
                 <td>{r.meet_name}</td>
                 <td>{r.record_date?.split("T")[0]}</td>
               </tr>
@@ -58,6 +65,10 @@ export default function Records({ rows, err }) {
           </tbody>
         </table>
       </div>
+
+      <p className="mt-4 text-sm text-gray-500">
+        Tipp: Nutze <code>?disc=CODE</code> in der URL, z. B. <code>/records?disc=200_OBS</code>
+      </p>
     </div>
   );
 }
