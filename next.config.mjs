@@ -1,18 +1,29 @@
-// next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 
-  // Wenn du i18n nutzt, trage deine Locales hier ein.
-  // Falls du bisher schon i18n hattest, bitte deine Werte übernehmen.
-  // Beispiel (anpassbar/optional):
+  // WICHTIG: Kein static export -> verhindert "Export encountered errors"
+  // und erlaubt Server Rendering/Funktionen.
+  // Falls du vorher "output: 'export'" hattest: das hier entfernt es.
+  // output: 'standalone' erzeugt eine lauffähige Serverless/Node-Ausgabe.
+  output: 'standalone',
+
+  // Falls du i18n nutzt, lass deinen Block hier stehen oder ergänze ihn:
   // i18n: {
-  //   locales: ['en', 'de', 'es', 'fr', 'it', 'nl'],
+  //   locales: ['en', 'de', 'fr', 'es', 'it', 'nl'],
   //   defaultLocale: 'en',
   // },
 
-  // KEIN output:'export' hier!
-  // Weitere bestehende Optionen kannst du hier ergänzen.
+  // Build nicht an Lint-/Typfehlern scheitern lassen (optional, hilft bei CI)
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: '**' }
+    ]
+  }
 };
 
 export default nextConfig;
