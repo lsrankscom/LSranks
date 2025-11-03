@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* kleine Default-Optik */
+html, body {
+  @apply bg-white text-gray-800;
+}
+a { @apply text-brand-700 hover:text-brand-500 underline-offset-4; }
+.container { @apply max-w-6xl mx-auto px-4; }
+.card { @apply bg-white border border-gray-200 rounded-xl shadow-sm; }
+.table { @apply w-full text-sm; }
+.table thead th { @apply text-left font-semibold text-gray-600 border-b; }
+.table tbody tr { @apply border-b hover:bg-gray-50; }
+.badge { @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700; }
