@@ -1,190 +1,218 @@
-// pages/api/sync-ils-world-records.js
-// Vollständige API-Route zum Scrapen der ILSF-Weltrekorde und Upsert in public.records
-
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import { createClient } from '@supabase/supabase-js';
+import axios from "axios";
+import * as cheerio from "cheerio";
+import { createClient } from "@supabase/supabase-js";
 
 /**
- * ──────────────────────────────────────────────────────────────────────────────
- * ENV, Supabase-Client und Token-Check
- * ──────────────────────────────────────────────────────────────────────────────
+ * Vollständiger Sync-Endpoint für ILSF World Records.
+ * - Parsed https://sport.ilsf.org/records (oder ILS_WR_URLS aus ENV)
+ * - Upsertet in public.records
+ * - ON CONFLICT exakt passend zu UNIQUE INDEX records_upsert_unique(record_scope, discipline_code, gender, pool_length, timing)
  *
- * Erwarte folgende ENV Variablen in Vercel:
- * - NEXT_PUBLIC_SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE   (oder alternativ ADMIN_TOKEN – wir unterstützen beides)
- * - ILS_WR_URLS (optional; Standard = https://sport.ilsf.org/records)
- * - SYNC_SECRET  (optional; du kannst stattdessen ?token=... nutzen)
+ * ENV vorausgesetzt:
+ *   SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY
+ *   ILS_WR_URLS (optional, kommasepariert; Standard: https://sport.ilsf.org/records)
+ *   ADMIN_TOKEN (ein simpler Token für den Endpoint-Aufruf)
  */
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE ||
-  process.env.ADMIN_TOKEN || // Fallback, falls du diesen Namen verwendet hast
-  '';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const ILS_WR_URLS = (process.env.ILS_WR_URLS || "https://sport.ilsf.org/records")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
 
-const ILS_URL =
-  process.env.ILS_WR_URLS?.trim() || 'https://sport.ilsf.org/records';
-
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.warn('[sync-ils-world-records] Supabase ENV fehlt.');
-}
-
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false },
+const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false }
 });
 
-function ok(res, payload) {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.status(200).send(JSON.stringify(payload));
-}
+// Hilfsfunktionen
+const pad = (n) => n.toString().padStart(2, "0");
 
-/**
- * ──────────────────────────────────────────────────────────────────────────────
- * Hilfsfunktionen
- * ──────────────────────────────────────────────────────────────────────────────
- */
+/** "1:02.78" -> 62780 ms, "2:01" -> 121000 ms, "0:49" -> 49000 ms */
+function timeToMs(s) {
+  if (!s) return null;
+  const str = String(s).trim();
 
-// "01:26.10" oder "1:02,78" → ms (Integer)
-function parseTimeToMs(raw) {
-  if (!raw) return null;
-  const t = String(raw).trim().replace(',', '.'); // Komma in Punkt
-  // Fälle: mm:ss.xx   oder  ss.xx
-  const parts = t.split(':');
-  let minutes = 0;
-  let seconds = 0;
-
+  // Formate wie "1:02.78", "1:03", "0:49", "2:01", "1:03:12" (hh:mm:ss.xx – theoretisch)
+  const parts = str.split(":").map(p => p.trim());
   if (parts.length === 1) {
-    seconds = parseFloat(parts[0]);
-  } else if (parts.length === 2) {
-    minutes = parseInt(parts[0], 10) || 0;
-    seconds = parseFloat(parts[1]);
+    // "49.12" oder "49"
+    const sec = parseFloat(parts[0].replace(",", "."));
+    if (Number.isFinite(sec)) return Math.round(sec * 1000);
+    return null;
+  }
+  // mm:ss(.xx) oder hh:mm:ss(.xx)
+  let h = 0, m = 0, ssec = 0;
+  if (parts.length === 2) {
+    [m, ssec] = parts;
+  } else if (parts.length === 3) {
+    [h, m, ssec] = parts;
   } else {
     return null;
   }
-  const ms = Math.round((minutes * 60 + seconds) * 1000);
-  return Number.isFinite(ms) ? ms : null;
+  const secFloat = parseFloat(String(ssec).replace(",", "."));
+  if (!Number.isFinite(secFloat)) return null;
+  const totalMs = (Number(h) * 3600 + Number(m) * 60 + secFloat) * 1000;
+  return Math.round(totalMs);
 }
 
-// Event-Text → Disziplin-Code (z. B. "OPEN – 100M OBSTACLE SWIM")
-function toDisciplineCode(eventText) {
-  if (!eventText) return null;
-  let s = eventText
-    .replace(/\s+/g, ' ')
-    .replace(/[–—-]/g, ' ')
-    .trim()
-    .toUpperCase();
-
-  // Prefix "OPEN" drauf, um klar vom Altersklassen-Kram getrennt zu sein
-  if (!s.startsWith('OPEN')) s = 'OPEN ' + s;
-
-  // raus mit Klammerzusätzen im Code
-  s = s.replace(/\(POOL\)/g, '').replace(/\(OPEN\)/g, '').trim();
-
-  // Leerzeichen & Sonderzeichen → Unterstrich
-  s = s.replace(/[^A-Z0-9]+/g, '_');
-  s = s.replace(/^_+|_+$/g, '');
-
-  return s;
+/** "Kaohsiung23-07-2009" -> Date(2009-07-23) (fallback: null) */
+function parseIlsfDate(s) {
+  if (!s) return null;
+  // viele Einträge sind "CityDD-MM-YYYY" oder "CityDD-MM-YYYY"
+  const m = s.match(/(\d{2})[-.](\d{2})[-.](\d{4})/);
+  if (!m) return null;
+  const [_, dd, mm, yyyy] = m;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-// Geschlecht aus Event-Text ableiten
-function inferGender(eventText) {
-  const t = (eventText || '').toLowerCase();
-  if (t.includes('women') || t.includes('female') || t.includes('frau')) return 'W';
-  if (t.includes('men') || t.includes('male') || t.includes('männer')) return 'M';
-  // Notfalls am Ende aus dem Kopf des Abschnitts lesen – hier default:
-  return 'M';
+/** einfache Disziplin-Code-Normierung, z.B. "Open - 100m Rescue Medley - Women" -> "OPEN__100M_RESCUE_MEDLEY" */
+function toDisciplineCode(eventTitle) {
+  if (!eventTitle) return null;
+  return eventTitle
+    .toUpperCase()
+    .replace(/\s+/g, "_")
+    .replace(/[\(\)]/g, "")
+    .replace(/-_/g, "_")
+    .replace(/_{2,}/g, "_")
+    .trim();
 }
 
-// 50m-Pool heuristisch erkennen
-function poolLengthFromEvent(eventText) {
-  const t = (eventText || '').toLowerCase();
-  if (t.includes('(pool)')) return 50;
-  if (t.includes('stillwater')) return 50; // ILSF nutzt bei Pool-Rekorden 50m
-  // open water / ocean → null
+/** Gender aus Titel ableiten */
+function inferGender(eventTitle) {
+  const t = (eventTitle || "").toLowerCase();
+  if (t.includes("women")) return "W";
+  if (t.includes("men")) return "M";
+  // Mixed Staffeln -> wir speichern "X"
+  if (t.includes("mixed")) return "X";
   return null;
 }
 
-// Timing-Label (i. d. R. „ET“)
-function timingFromContext(eventText) {
-  return 'ET';
+/** Poollänge: ILSF-WR sind praktisch immer 50 m */
+function inferPoolLength(eventTitle) {
+  // Falls später 25 m Rekorde auftauchen, hier anpassen/erkennen
+  return 50;
 }
 
-// Datum aus Zelle "City + Date" extrahieren (z. B. "Kaohsiung 23-07-2009")
-function extractDate(cellText) {
-  if (!cellText) return null;
-  const t = String(cellText).trim();
-  // Versuche DD-MM-YYYY oder DD/MM/YYYY
-  const m = t.match(/(\d{2})[./-](\d{2})[./-](\d{4})/);
-  if (m) {
-    const [_, dd, mm, yyyy] = m;
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  // Fallback: kein Datum gefunden
-  return null;
+/** Timing: elektronisch (ET) – die ILSF-Seite zeigt keine Handszeit, daher default ET */
+function inferTiming() {
+  return "ET";
 }
 
-// City extrahieren (alles vor dem Datum)
-function extractCity(cellText) {
-  if (!cellText) return null;
-  const t = String(cellText).trim();
-  const m = t.match(/^(.*?)[\s-]*\d{2}[./-]\d{2}[./-]\d{4}/);
-  if (m && m[1]) return m[1].trim();
-  // wenn kein Datum → gib kompletten Text zurück, die Seite ist inkonsistent
-  return t;
-}
+/** Cheerio-Parser: zieht aus der WR-Seite Zeilen zusammen */
+async function parseIlsfPage(url) {
+  const out = [];
+  const html = (await axios.get(url, { timeout: 30000 })).data;
+  const $ = cheerio.load(html);
 
-/**
- * ──────────────────────────────────────────────────────────────────────────────
- * Scraper: Lädt sport.ilsf.org/records und baut Record-Payloads
- * ──────────────────────────────────────────────────────────────────────────────
- */
-async function scrapeIlsfRecords() {
-  const resp = await axios.get(ILS_URL, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (compatible; LSRanksBot/1.0; +https://lsranks.com)',
-      Accept: 'text/html,application/xhtml+xml',
-    },
-    timeout: 30000,
+  // Die Seite hat Abschnitte mit Tabellen (Event/Competitor/Date/Time/Location)
+  // Wir lesen zeilenweise.
+  $("table").each((_, tbl) => {
+    $(tbl).find("tbody tr").each((__, tr) => {
+      const tds = $(tr).find("td");
+      if (tds.length < 5) return;
+
+      const eventTitle = $(tds[0]).text().trim();   // "Open - 100m Rescue Medley - Women"
+      const competitor = $(tds[1]).text().trim();   // "Name\nNation/Team"
+      const dateStrRaw = $(tds[2]).text().trim();   // enthält Datum (oft auf 2 Zeilen)
+      const timeStr = $(tds[3]).text().trim();      // "1:02.78"
+      const location = $(tds[4]).text().trim();     // Ort/City, teils mit Datum-Anteil
+
+      // Disziplin & Gender
+      const discipline_code = toDisciplineCode(eventTitle);
+      const gender = inferGender(eventTitle);
+      if (!discipline_code || !gender) return;
+
+      // Zeiten
+      const time_ms = timeToMs(timeStr);
+      if (time_ms == null) return;
+
+      // Datum
+      const record_date = parseIlsfDate(dateStrRaw) || null;
+
+      // weitere Felder
+      const athlete_name = competitor.split("\n")[0].trim() || null;
+      const nation = null; // ILSF listet Team/Club – wir lassen nation/club leer
+      const club = null;
+      const meet_name = null;
+      const city = location ? location.split("\n")[0].trim() : null;
+      const country = null;
+
+      const row = {
+        discipline_code,
+        gender,
+        pool_length: inferPoolLength(eventTitle),
+        timing: inferTiming(),
+        time_ms,
+        athlete_name,
+        nation,
+        club,
+        meet_name,
+        record_date,      // DATE oder null
+        city,
+        country,
+        record_scope: "world",
+        source_url: url,
+        updated_at: new Date().toISOString()
+      };
+      out.push(row);
+    });
   });
 
-  const $ = cheerio.load(resp.data);
+  return out;
+}
 
-  // Auf der Seite stehen mehrere Sektionen mit Tabellen (wir sammeln alle)
-  const payloads = [];
-  $('table').each((_, table) => {
-    const $table = $(table);
+export default async function handler(req, res) {
+  try {
+    // einfacher Token-Check
+    if (!ADMIN_TOKEN || req.query.token !== ADMIN_TOKEN) {
+      return res.status(401).json({ ok: false, error: "unauthorized" });
+    }
 
-    // Kopfzeile identifizieren
-    const header = [];
-    $table.find('thead tr th').each((__, th) => {
-      header.push($(th).text().trim().toLowerCase());
+    // Seiten parsen
+    const debug = req.query.debug ? 1 : 0;
+    let rows = [];
+    for (const url of ILS_WR_URLS) {
+      const part = await parseIlsfPage(url);
+      rows = rows.concat(part);
+    }
+
+    // Minimal validieren/normalisieren
+    rows = rows.filter(r =>
+      r.discipline_code && r.gender && Number.isInteger(r.pool_length) &&
+      r.timing && Number.isInteger(r.time_ms)
+    );
+
+    // === WICHTIG: Upsert exakt mit deinem UNIQUE-Index ===
+    const { error: upsertError } = await sb
+      .from("records")
+      .upsert(rows, {
+        ignoreDuplicates: false,
+        returning: "minimal",
+        onConflict: "record_scope,discipline_code,gender,pool_length,timing"
+      });
+
+    if (upsertError) {
+      return res.status(500).json({
+        ok: true,
+        tablesFound: ILS_WR_URLS.length,
+        parsedRows: rows.length,
+        upserts: 0,
+        debug: rows.slice(0, 3),
+        upsertError: upsertError.message
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      tablesFound: ILS_WR_URLS.length,
+      parsedRows: rows.length,
+      upserts: rows.length,
+      debug: debug ? rows.slice(0, 3) : []
     });
-
-    // Fallback, wenn kein thead: erste Zeile als Kopf
-    const $rows =
-      header.length > 0
-        ? $table.find('tbody tr')
-        : $table.find('tr').slice(1); // ohne erste Zeile
-
-    $rows.each((__, tr) => {
-      const $tds = $(tr).find('td');
-      if ($tds.length < 4) return;
-
-      // ILSF: Spalten sind typischerweise:
-      // 0: Event, 1: Competitor(+Nation/Team), 2: (Location + Date), 3: Time
-      const ev = $tds.eq(0).text().trim();
-      const competitor = $tds.eq(1).text().trim().replace(/\s+/g, ' ');
-      const placeDate = $tds.eq(2).text().trim().replace(/\s+/g, ' ');
-      const timeStr = $tds.eq(3).text().trim();
-
-      // Disziplin & Attribute
-      const discipline_code = toDisciplineCode(ev);
-      const gender = inferGender(ev);
-      const pool_length = poolLengthFromEvent(ev);
-      const timing = timingFromContext(ev);
-
-      const athlete_name = competitor || null;
-      const meet_name = null; // auf der ILS-Seite nicht als
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+}
