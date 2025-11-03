@@ -10,11 +10,9 @@ export default function Records() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    scope: 'open',
+    scope: '',
     gender: '',
     eventType: '',
-    pool: '',
-    timing: '',
     nation: '',
     discipline: ''
   });
@@ -37,7 +35,13 @@ export default function Records() {
 
   return (
     <div style={{ padding: '2rem' }}>
-      <h1 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+      <h1
+        style={{
+          fontSize: '1.8rem',
+          marginBottom: '1.5rem',
+          textAlign: 'center'
+        }}
+      >
         World Records
       </h1>
 
@@ -54,8 +58,9 @@ export default function Records() {
         <select
           onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
           value={filters.scope}
-          style={{ padding: '0.6rem', minWidth: '140px' }}
+          style={{ padding: '0.6rem', minWidth: '160px' }}
         >
+          <option value="">Alle Kategorien</option>
           <option value="open">Open only</option>
           <option value="masters">Masters</option>
           <option value="youth">Youth</option>
@@ -79,26 +84,6 @@ export default function Records() {
           <option value="">Einzel & Staffeln</option>
           <option value="individual">Einzel</option>
           <option value="relay">Staffel</option>
-        </select>
-
-        <select
-          onChange={(e) => setFilters({ ...filters, pool: e.target.value })}
-          value={filters.pool}
-          style={{ padding: '0.6rem', minWidth: '120px' }}
-        >
-          <option value="">All pools</option>
-          <option value="50">50m</option>
-          <option value="25">25m</option>
-        </select>
-
-        <select
-          onChange={(e) => setFilters({ ...filters, timing: e.target.value })}
-          value={filters.timing}
-          style={{ padding: '0.6rem', minWidth: '180px' }}
-        >
-          <option value="">All timing</option>
-          <option value="ET">ET (Electronic)</option>
-          <option value="MT">MT (Manual)</option>
         </select>
 
         <input
@@ -132,14 +117,11 @@ export default function Records() {
             <tr style={{ backgroundColor: '#f2f2f2', textAlign: 'left' }}>
               <th style={{ padding: '0.8rem' }}>Discipline</th>
               <th style={{ padding: '0.8rem' }}>G</th>
-              <th style={{ padding: '0.8rem' }}>Pool</th>
-              <th style={{ padding: '0.8rem' }}>Timing</th>
               <th style={{ padding: '0.8rem' }}>Time</th>
               <th style={{ padding: '0.8rem' }}>Athlete / Team</th>
               <th style={{ padding: '0.8rem' }}>Nation</th>
               <th style={{ padding: '0.8rem' }}>Meet</th>
               <th style={{ padding: '0.8rem' }}>Date</th>
-              <th style={{ padding: '0.8rem' }}>Source</th>
             </tr>
           </thead>
           <tbody>
@@ -147,19 +129,16 @@ export default function Records() {
               <tr key={i} style={{ borderBottom: '1px solid #ddd' }}>
                 <td style={{ padding: '0.7rem' }}>{r.discipline_code}</td>
                 <td style={{ padding: '0.7rem' }}>{r.gender?.toUpperCase()}</td>
-                <td style={{ padding: '0.7rem' }}>{r.pool_length}</td>
-                <td style={{ padding: '0.7rem' }}>{r.timing}</td>
-                <td style={{ padding: '0.7rem' }}>{(r.time_ms / 1000).toFixed(2)}</td>
+                <td style={{ padding: '0.7rem' }}>
+                  {(r.time_ms / 1000).toFixed(2)}
+                </td>
                 <td style={{ padding: '0.7rem' }}>{r.athlete_name}</td>
-                <td style={{ padding: '0.7rem' }}>{r.nation}</td>
+                <td style={{ padding: '0.7rem' }}>{r.nation || '—'}</td>
                 <td style={{ padding: '0.7rem' }}>{r.meet_name || '—'}</td>
                 <td style={{ padding: '0.7rem' }}>
-                  {r.record_date ? new Date(r.record_date).toISOString().split('T')[0] : '—'}
-                </td>
-                <td style={{ padding: '0.7rem' }}>
-                  <a href={r.source_url} target="_blank" rel="noreferrer">
-                    link
-                  </a>
+                  {r.record_date
+                    ? new Date(r.record_date).toISOString().split('T')[0]
+                    : '—'}
                 </td>
               </tr>
             ))}
