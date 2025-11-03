@@ -2,11 +2,11 @@
 import React from 'react';
 import Link from 'next/link';
 
-export default function HomePage({ highlight = null, athletes = [], competitions = [], news = [] }) {
+export default function HomePage({ highlight, athletes, competitions, news }) {
   const safeAthletes = Array.isArray(athletes) ? athletes : [];
   const safeCompetitions = Array.isArray(competitions) ? competitions : [];
   const safeNews = Array.isArray(news) ? news : [];
-  const hero = highlight ?? { title: 'Welcome to LSranks', subtitle: 'Rankings, results & schedules' };
+  const hero = highlight ?? { title: 'LSranks', subtitle: 'Lifesaving rankings & results' };
 
   return (
     <main style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
@@ -66,15 +66,37 @@ export default function HomePage({ highlight = null, athletes = [], competitions
   );
 }
 
-// WICHTIG: SSR statt SSG, damit beim Build keine undefined-Maps craschen
+// Lädt Daten sicher aus Supabase (wenn ENV vorhanden) – kein Crash bei Fehlern
 export async function getServerSideProps() {
-  // TODO: Hier später echtes Laden (DB/API). Jetzt nur sichere Defaults.
-  return {
-    props: {
-      highlight: { title: 'LSranks', subtitle: 'Lifesaving rankings & results' },
-      athletes: [],
-      competitions: [],
-      news: []
+  // Defaults, falls irgendwas schiefgeht
+  let highlight = { title: 'LSranks', subtitle: 'Lifesaving rankings & results' };
+  let athletes = [];
+  let competitions = [];
+  let news = [];
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Passe Tabellennamen/Spalten bei Bedarf an
+      const [{ data: compData }, { data: athData }, { data: newsData }] = await Promise.all([
+        supabase.from('competitions').select('id,name,date').order('date', { ascending: true }),
+        supabase.from('athletes').select('id,name').limit(20),
+        supabase.from('news').select('id,title,date').order('date', { ascending: false }).limit(10),
+      ]);
+
+      competitions = Array.isArray(compData) ? compData : [];
+      athletes = Array.isArray(athData) ? athData : [];
+      news = Array.isArray(newsData) ? newsData : [];
     }
-  };
+  } catch {
+    // schluckt Fehler und liefert leere Listen -> Seite bleibt online
+  }
+
+  return { props: { highlight, athletes, competitions, news } };
 }
