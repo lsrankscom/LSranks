@@ -1,11 +1,11 @@
 // pages/_app.js
 import '../styles/globals.css';
-import { I18nProvider } from '../lib/i18n';
+import Layout from '../components/Layout';
 
 export default function App({ Component, pageProps }) {
   return (
-    <I18nProvider initialLocale={pageProps?.locale}>
+    <Layout>
       <Component {...pageProps} />
-    </I18nProvider>
+    </Layout>
   );
 }
