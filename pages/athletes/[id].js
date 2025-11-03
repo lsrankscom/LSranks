@@ -1,48 +1,30 @@
 // pages/athletes/[id].js
-import React from 'react';
-import { useRouter } from 'next/router';
+import { getAthleteById } from '../../lib/data';
 
-export default function AthleteDetail({ athlete = null }) {
-  const router = useRouter();
-  const a = athlete ?? {};
-
-  // Fallback-Anzeige, falls bei CSR noch geladen wird
-  if (router.isFallback) {
-    return <main style={{ padding: 24 }}><p>Loading…</p></main>;
-  }
-
+export default function AthleteDetail({ athlete }) {
+  const a = athlete || {};
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Athlete</h1>
-      <p><strong>Name:</strong> {a?.name ?? 'Unknown'}</p>
-      <p><strong>ID:</strong> {a?.id ?? 'n/a'}</p>
-
-      <section style={{ marginTop: 16 }}>
-        <h2>Results</h2>
-        {Array.isArray(a?.results) && a.results.length > 0 ? (
-          <ul>
-            {a.results.map((r, i) => (
-              <li key={r?.id ?? i}>
-                {r?.event ?? 'Event'} {r?.time ? `— ${r.time}` : ''}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No results yet.</p>
-        )}
-      </section>
-    </main>
+    <div className="section">
+      <div className="section-header">
+        <h2 className="section-title">{a?.name ?? 'Athlete'}</h2>
+        <span className="badge">{a?.country ?? '—'}</span>
+      </div>
+      <div className="section-content">
+        <div className="list">
+          <div className="card"><strong>Club</strong><div className="muted">{a?.club ?? '—'}</div></div>
+          <div className="card"><strong>Country</strong><div className="muted">{a?.country ?? '—'}</div></div>
+        </div>
+        <div style={{marginTop:16}} className="card">
+          <strong>Bio</strong>
+          <p className="muted" style={{marginTop:8}}>{a?.biography ?? 'No biography yet.'}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// Keine SSG-Pfade – Server-Side per Request:
-export async function getServerSideProps(context) {
-  const { id } = context.params ?? {};
-  // TODO: echtes Laden per id später einbauen
-  // Temporär: definierte Struktur zurückgeben
-  return {
-    props: {
-      athlete: id ? { id, name: `Athlete ${id}`, results: [] } : { id: null, name: 'Unknown', results: [] }
-    }
-  };
+export async function getServerSideProps(ctx) {
+  const id = ctx?.params?.id ?? null;
+  const athlete = await getAthleteById(id);
+  return { props: { athlete } };
 }
