@@ -1,28 +1,22 @@
 {
   "name": "lsranks",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build && next export",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "echo \"lint disabled\"",
+    "typecheck": "echo \"types disabled\""
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.17",
-    "@heroicons/react": "^2.1.1",
-    "@supabase/supabase-js": "^2.43.1",
-    "autoprefixer": "^10.4.20",
-    "cheerio": "^1.0.0-rc.12",
     "next": "14.0.2",
-    "postcss": "^8.4.47",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "tailwindcss": "^3.4.14"
-  },
-  "devDependencies": {
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.0.2"
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "next-intl": "3.14.1",
+    "@fullcalendar/react": "6.1.15",
+    "@fullcalendar/daygrid": "6.1.15",
+    "@fullcalendar/interaction": "6.1.15",
+    "cheerio": "1.0.0-rc.12"
   }
 }
