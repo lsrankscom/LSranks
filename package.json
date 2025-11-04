@@ -1,6 +1,6 @@
 {
   "name": "lsranks",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,8 @@
     "@fullcalendar/react": "6.1.15",
     "@fullcalendar/daygrid": "6.1.15",
     "@fullcalendar/interaction": "6.1.15",
-    "cheerio": "1.0.0-rc.12"
+    "cheerio": "1.0.0-rc.12",
+    "@supabase/supabase-js": "2.45.0"
   },
   "engines": {
     "node": ">=18 <23"
