@@ -1,0 +1,54 @@
+{
+  "nav": {
+    "competitions": "Competitions",
+    "calendar": "Calendar",
+    "records": "Records",
+    "info": "Info Stats",
+    "stats": "Stats",
+    "news": "News",
+    "about": "About",
+    "admin": "Admin"
+  },
+  "home": {
+    "title": "LifesavingRankings",
+    "subtitle": "Global results, records & rankings — refreshed daily",
+    "devNote": "Heads-up: This website is still under active development.",
+    "searchPlaceholder": "Name, club, nation…",
+    "quickLinks": "Quick links",
+    "allCompetitions": "All competitions",
+    "worldRecords": "World Records"
+  },
+  "common": {
+    "search": "Search",
+    "club": "Club",
+    "birthFrom": "Birthyear from",
+    "birthTo": "Up to",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "request": "Request competition",
+    "uploadedCompetitions": "Uploaded competitions",
+    "noData": "Nothing here yet."
+  },
+  "calendar": {
+    "title": "Competition calendar"
+  },
+  "records": {
+    "title": "Records",
+    "world": "World",
+    "national": "National",
+    "gender": "Gender",
+    "age": "Age group",
+    "type": "Event type",
+    "individual": "Individual",
+    "relay": "Relay"
+  },
+  "info": {
+    "dbStats": "Database Statistics",
+    "latestNews": "Latest News",
+    "mostActive": "Most Active Clubs/National Team"
+  },
+  "about": {
+    "contact": "Contact & feedback",
+    "message": "Your message"
+  }
+}
