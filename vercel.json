@@ -1,5 +1,10 @@
 {
+  "functions": {
+    "api/cron/update-records.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "crons": [
-    { "path": "/api/cron/daily", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/update-records", "schedule": "0 3 * * *" }
   ]
 }
