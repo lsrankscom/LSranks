@@ -1,48 +1,25 @@
-import Layout from '../components/Layout';
-import Link from 'next/link';
-import { useState } from 'react';
+import {useTranslations} from "next-intl";
+import AthleteSearch from "../components/AthleteSearch";
 
-export default function Home() {
-  const [q, setQ] = useState('');
-
-  const goSearch = (e) => {
-    e.preventDefault();
-    const query = q.trim();
-    window.location.href = query ? `/athletes?query=${encodeURIComponent(query)}` : '/athletes';
-  };
-
+export default function Home(){
+  const t = useTranslations("home");
   return (
-    <>
+    <div className="container">
       <div className="hero">
-        <div className="container">
-          <h1>LifesavingRankings</h1>
-          <p>Global results, records & rankings — refreshed daily</p>
-        </div>
+        <h1 style={{margin:0}}>{t("title")}</h1>
+        <p style={{opacity:.95}}>{t("subtitle")}</p>
       </div>
 
-      <Layout>
-        <div className="section card" style={{borderLeft:'6px solid var(--warn)'}}>
-          <strong>Heads-up:</strong> This website is still <strong>under active development</strong>.
-          Some pages and imports are being refined.
-        </div>
+      <div className="notice card">{t("devNote")}</div>
 
-        <div className="section">
-          <h2>Search for athletes</h2>
-          <form onSubmit={goSearch} className="card" style={{display:'flex', gap:10}}>
-            <input className="input" placeholder="Name, club, nation…" value={q} onChange={(e)=>setQ(e.target.value)} />
-            <button className="btn" type="submit">Search</button>
-          </form>
-        </div>
+      <h3>Search for athletes</h3>
+      <AthleteSearch/>
 
-        <div className="section">
-          <h2>Quick links</h2>
-          <div className="card" style={{display:'flex', gap:14, flexWrap:'wrap'}}>
-            <Link className="btn" href="/competitions">All competitions →</Link>
-            <Link className="btn" href="/records">World Records →</Link>
-            <Link className="btn" href="/calendar">Calendar →</Link>
-          </div>
-        </div>
-      </Layout>
-    </>
+      <div className="grid cols-3" style={{marginTop:"1rem"}}>
+        <a className="btn" href="/competitions">All competitions →</a>
+        <a className="btn" href="/records">World Records →</a>
+        <a className="btn" href="/calendar">Calendar →</a>
+      </div>
+    </div>
   );
 }
