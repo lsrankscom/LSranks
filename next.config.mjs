@@ -1,15 +1,18 @@
-// next.config.js
+// next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Falls du einige Pages als statisch exportierst, aber Daten fehlen,
-  // crasht der Build nicht sofort (nur Warnung). Optional:
+
+  // Verhindert, dass fehlende Lints/Types den Build killen,
+  // bis alles sauber migriert ist.
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  // Wenn du Supabase auf dem Client brauchst:
+
+  // Falls du Supabase im Client brauchst, spiegeln wir die Vars nach vorn.
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   },
 };
-module.exports = nextConfig;
+
+export default nextConfig;
