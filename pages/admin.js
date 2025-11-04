@@ -1,51 +1,15 @@
-// pages/admin.js
-import React from 'react';
-
-export default function AdminPage({ competitions = [], athletes = [] }) {
-  const safeCompetitions = Array.isArray(competitions) ? competitions : [];
-  const safeAthletes = Array.isArray(athletes) ? athletes : [];
-
+export default function Admin(){
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Admin</h1>
-
-      <section>
-        <h2>Competitions</h2>
-        {safeCompetitions.length === 0 ? (
-          <p>No competitions yet.</p>
-        ) : (
-          <ul>
-            {safeCompetitions.map((c, i) => (
-              <li key={c?.id ?? i}>{c?.name ?? 'Unnamed'}{c?.date ? ` — ${c.date}` : ''}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Athletes</h2>
-        {safeAthletes.length === 0 ? (
-          <p>No athletes yet.</p>
-        ) : (
-          <ul>
-            {safeAthletes.map((a, i) => (
-              <li key={a?.id ?? i}>{a?.name ?? 'Unnamed Athlete'}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <div className="container">
+      <h2>Admin</h2>
+      <div className="card">
+        <strong>🔔 Requests</strong>
+        <p>New competition & results requests will appear here.</p>
+      </div>
+      <div className="grid cols-2" style={{marginTop:"1rem"}}>
+        <a className="btn" href="/competitions/request">Add competition</a>
+        <a className="btn" href="/calendar">Open calendar</a>
+      </div>
+    </div>
   );
-}
-
-// Temporär: keine SSG – immer Server-Side-Rendern
-export async function getServerSideProps() {
-  // TODO: Hier später echtes Fetching einbauen.
-  // Vorläufig leere, aber definierte Arrays zurückgeben, damit .map nie crasht.
-  return {
-    props: {
-      competitions: [],
-      athletes: []
-    }
-  };
 }
