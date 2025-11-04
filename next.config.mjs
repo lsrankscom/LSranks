@@ -1,29 +1,15 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-
-  // WICHTIG: Kein static export -> verhindert "Export encountered errors"
-  // und erlaubt Server Rendering/Funktionen.
-  // Falls du vorher "output: 'export'" hattest: das hier entfernt es.
-  // output: 'standalone' erzeugt eine lauffähige Serverless/Node-Ausgabe.
-  output: 'standalone',
-
-  // Falls du i18n nutzt, lass deinen Block hier stehen oder ergänze ihn:
-  // i18n: {
-  //   locales: ['en', 'de', 'fr', 'es', 'it', 'nl'],
-  //   defaultLocale: 'en',
-  // },
-
-  // Build nicht an Lint-/Typfehlern scheitern lassen (optional, hilft bei CI)
+  // Falls du einige Pages als statisch exportierst, aber Daten fehlen,
+  // crasht der Build nicht sofort (nur Warnung). Optional:
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: '**' }
-    ]
-  }
+  // Wenn du Supabase auf dem Client brauchst:
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  },
 };
-
-export default nextConfig;
+module.exports = nextConfig;
